@@ -49,19 +49,46 @@ shangcheng_claude2/
 
 ## 部署信息
 
-### Vercel
+### Vercel 部署
 
-- **项目**: shangcheng_claude2
-- **地址**: https://shangchengclaude2.vercel.app
-- **环境变量**:
-  - `SUPABASE_URL`: https://fbnflvpnyuqikdnjjnic.supabase.co
-  - `SUPABASE_ANON_KEY`: (见 Vercel 配置)
-  - `JWT_SECRET`: (见 Vercel 配置)
+#### 1. 部署步骤
+
+```bash
+# 安装 Vercel CLI
+npm install -g vercel
+
+# 登录 Vercel
+vercel login
+
+# 链接项目
+vercel link
+
+# 添加环境变量
+vercel env add SUPABASE_URL production
+vercel env add SUPABASE_ANON_KEY production
+vercel env add JWT_SECRET production
+
+# 部署到生产环境
+vercel --prod
+```
+
+#### 2. 环境变量
+
+| 变量名 | 值 |
+|--------|-----|
+| `SUPABASE_URL` | https://fbnflvpnyuqikdnjjnic.supabase.co |
+| `SUPABASE_ANON_KEY` | eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZibmZsdnBueXVxaWtkbmpqbmljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODU4OTEsImV4cCI6MjA4Nzg2MTg5MX0.NgzzUnGnccUZjlBLRzbsbSMGbw7pXpQQ3h0h6-e9A9c |
+| `JWT_SECRET` | FvXrqEAyjO6xNFjHmf6A97E3TcwLT3i0NQmASdbQNEIBpCvERBgT6XDrQf2qIl/2B4EqGdlIY0j6wtbc15OESw== |
+
+#### 3. 部署地址
+
+- **生产环境**: https://shangchengclaude2.vercel.app
 
 ### GitHub
 
 - **仓库**: https://github.com/lovefe2023/sc_claude
 - **分支**: main
+- **推送命令**: `git push -u origin main`
 
 ## 测试账号
 
