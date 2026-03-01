@@ -39,6 +39,20 @@ export default async function handler(req, res) {
       return res.json(data);
     }
 
+    // Products recommendations (for homepage)
+    if (path === '/api/products/recommendations/list') {
+      const params = new URLSearchParams(url.split('?')[1] || '');
+      const limit = parseInt(params.get('limit') || '10');
+
+      const { data } = await supabase.from('products').select(`
+        *,
+        category:categories(name, slug),
+        images:product_images(*)
+      `).eq('is_active', true).order('sales_count', { ascending: false }).limit(limit);
+
+      return res.json(data);
+    }
+
     // Product detail
     if (path.startsWith('/api/product/')) {
       const id = path.split('/api/product/')[1];
