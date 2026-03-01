@@ -1,14 +1,13 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://fbnflvpnyuqikdnjjnic.supabase.co';
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZibmZsdnBueXVxaWtkbmpqbmljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODU4OTEsImV4cCI6MjA4Nzg2MTg5MX0.NgzzUnGnccUZjlBLRzbsbSMGbw7pXpQQ3h0h6-e9A9c';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+module.exports = async function handler(req, res) {
   const { url, method } = req;
   const path = url.split('?')[0];
 
@@ -84,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const token = authHeader.replace('Bearer ', '');
       try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+        const decoded = jwt.verify(token, JWT_SECRET);
         const { data: user } = await supabase.from('users').select('*').eq('id', decoded.userId).single();
 
         if (!user) {
