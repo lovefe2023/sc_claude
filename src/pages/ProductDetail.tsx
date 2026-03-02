@@ -1,15 +1,116 @@
-import { ArrowLeft, Share2, Flame, ChevronRight, MapPin, Star, HeadphonesIcon, ShoppingCart } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Share2, Flame, ChevronRight, MapPin, Star, HeadphonesIcon, ShoppingCart, Loader2 } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { api, Product } from '../api/client';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function ProductDetail() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const { addToCart, totalItems } = useCart();
+  const { user } = useAuth();
 
-  const images = [
-    'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1513885535751-8b9238bd345a?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=800',
-    'https://images.unsplash.com/photo-1513885535751-8b9238bd345a?auto=format&fit=crop&q=80&w=800',
-  ];
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  useEffect(() => {
+    if (id) {
+      loadProduct();
+    }
+  }, [id]);
+
+  const loadProduct = async () => {
+    try {
+      setLoading(true);
+      const data = await api.products.getById(id!);
+      setProduct(data);
+    } catch (error) {
+      console.error('Failed to load product:', error);
+      showToastMessage('加载商品失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showToastMessage = (message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  const handleAddToCart = async () => {
+    if (!user) {
+      showToastMessage('请先登录');
+      setTimeout(() => navigate('/login'), 1500);
+      return;
+    }
+
+    if (!product) return;
+
+    try {
+      setAddingToCart(true);
+      await addToCart(product.id, 1);
+      showToastMessage('已加入购物车');
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+      showToastMessage('添加失败，请重试');
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!user) {
+      showToastMessage('请先登录');
+      setTimeout(() => navigate('/login'), 1500);
+      return;
+    }
+
+    if (!product) return;
+
+    try {
+      setAddingToCart(true);
+      await addToCart(product.id, 1);
+      navigate('/checkout');
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+      showToastMessage('添加失败，请重试');
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  // 获取商品图片列表
+  const images = product?.images?.length
+    ? product.images.sort((a, b) => a.sort_order - b.sort_order).map(img => img.image_url)
+    : ['https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=800'];
+
+  if (loading) {
+    return (
+      <div className="bg-slate-50 min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-pink-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="bg-slate-50 min-h-screen flex flex-col items-center justify-center">
+        <p className="text-slate-500 mb-4">商品不存在</p>
+        <button
+          onClick={() => navigate(-1)}
+          className="px-4 py-2 bg-pink-600 text-white rounded-full"
+        >
+          返回
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-50 text-slate-900 font-sans antialiased pb-24 min-h-screen">
@@ -29,39 +130,50 @@ export default function ProductDetail() {
       <main className="max-w-md mx-auto w-full flex flex-col pt-[72px]">
         {/* Main Image */}
         <div className="relative w-full aspect-square bg-white overflow-hidden group">
-          <div 
-            className="w-full h-full bg-center bg-cover transition-transform duration-500 hover:scale-105" 
-            style={{ backgroundImage: `url(${images[0]})` }}
+          <div
+            className="w-full h-full bg-center bg-cover transition-transform duration-500 hover:scale-105"
+            style={{ backgroundImage: `url(${images[selectedImage]})` }}
           ></div>
           <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm">
-            1/4
+            {selectedImage + 1}/{images.length}
           </div>
         </div>
 
         {/* Thumbnails */}
-        <div className="flex w-full overflow-x-auto no-scrollbar px-4 py-4 gap-3 bg-white border-b border-pink-600/10">
-          {images.map((img, idx) => (
-            <div key={idx} className={`flex-shrink-0 w-20 aspect-square rounded-lg border-2 ${idx === 0 ? 'border-pink-600' : 'border-transparent opacity-70'} overflow-hidden cursor-pointer`}>
-              <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url(${img})` }}></div>
-            </div>
-          ))}
-        </div>
+        {images.length > 1 && (
+          <div className="flex w-full overflow-x-auto no-scrollbar px-4 py-4 gap-3 bg-white border-b border-pink-600/10">
+            {images.map((img, idx) => (
+              <div
+                key={idx}
+                onClick={() => setSelectedImage(idx)}
+                className={`flex-shrink-0 w-20 aspect-square rounded-lg border-2 ${idx === selectedImage ? 'border-pink-600' : 'border-transparent opacity-70'} overflow-hidden cursor-pointer`}
+              >
+                <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url(${img})` }}></div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Product Info */}
         <div className="bg-white px-4 py-5 mb-2">
-          <h1 className="text-2xl font-bold leading-tight text-slate-900 mb-3">精选生日礼盒 - 定制惊喜版</h1>
+          <h1 className="text-2xl font-bold leading-tight text-slate-900 mb-3">{product.name}</h1>
           <div className="flex items-end justify-between flex-wrap gap-2">
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-pink-600">¥49.99</span>
-              <span className="text-base text-slate-500 line-through decoration-slate-400">¥89.99</span>
+              <span className="text-3xl font-bold text-pink-600">¥{product.price.toFixed(2)}</span>
+              {product.original_price > product.price && (
+                <span className="text-base text-slate-500 line-through decoration-slate-400">¥{product.original_price.toFixed(2)}</span>
+              )}
             </div>
             <div className="flex items-center gap-1 bg-pink-600/5 px-2 py-1 rounded text-xs text-pink-600 font-medium">
               <Flame className="w-4 h-4" />
-              <span>已售 2.3k</span>
+              <span>已售 {(product.sales_count / 1000).toFixed(1)}k</span>
             </div>
           </div>
+          {/* Tags */}
           <div className="flex gap-2 mt-4 flex-wrap">
-            <div className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded font-medium border border-green-200">包邮</div>
+            {product.tags?.includes('free_shipping') && (
+              <div className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded font-medium border border-green-200">包邮</div>
+            )}
             <div className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded font-medium border border-blue-200">正品保证</div>
           </div>
         </div>
@@ -99,47 +211,54 @@ export default function ProductDetail() {
             <div className="h-px bg-pink-600/20 flex-1"></div>
           </div>
           <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
-            <p>用我们的精选生日礼盒给您的亲人一个惊喜。精心策划，这个礼盒包含了一系列我们最好的商品，旨在带来欢乐和兴奋。</p>
-            <div className="w-full rounded-lg overflow-hidden my-4">
-              <img src="https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=800" alt="Detail 1" className="w-full h-auto object-cover" />
-            </div>
-            <p>每个礼盒都采用优质材料和精美的展示。非常适合生日、周年纪念日，或者仅仅是为了表达心意。</p>
-            <ul className="list-disc pl-5 space-y-2 mt-4 text-slate-900">
-              <li>手工包装，配有优质丝带</li>
-              <li>包含可定制的贺卡</li>
-              <li>环保包装材料</li>
-              <li>内含惊喜神秘物品</li>
-            </ul>
-            <div className="w-full rounded-lg overflow-hidden my-4">
-              <img src="https://images.unsplash.com/photo-1513885535751-8b9238bd345a?auto=format&fit=crop&q=80&w=800" alt="Detail 2" className="w-full h-auto object-cover" />
-            </div>
+            <p>{product.description || '暂无商品详情'}</p>
+            {images.slice(1).map((img, idx) => (
+              <div key={idx} className="w-full rounded-lg overflow-hidden my-4">
+                <img src={img} alt={`商品详情 ${idx + 2}`} className="w-full h-auto object-cover" />
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Reviews */}
         <div className="bg-white px-4 py-6 mt-2 mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-slate-900">评价 (128)</h3>
+            <h3 className="text-lg font-bold text-slate-900">评价 ({product.review_count || 0})</h3>
             <div className="flex items-center text-pink-600 text-sm font-medium cursor-pointer">
               查看全部 <ChevronRight className="w-4 h-4 ml-1" />
             </div>
           </div>
-          <div className="p-4 rounded-lg bg-slate-50 border border-pink-600/5">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gray-300 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100')" }}></div>
-                <span className="text-sm font-bold">莎拉 M.</span>
+          {product.review_count > 0 ? (
+            <div className="p-4 rounded-lg bg-slate-50 border border-pink-600/5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center">
+                    <span className="text-pink-600 text-sm font-bold">用</span>
+                  </div>
+                  <span className="text-sm font-bold">用户评价</span>
+                </div>
+                <div className="flex text-yellow-400 text-sm">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Star key={i} className={`w-4 h-4 ${i <= Math.round(product.rating) ? 'fill-current' : ''}`} />
+                  ))}
+                </div>
               </div>
-              <div className="flex text-yellow-400 text-sm">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Star key={i} className="w-4 h-4 fill-current" />
-                ))}
-              </div>
+              <p className="text-sm text-slate-600">商品质量很好，物流也很快，非常满意！</p>
             </div>
-            <p className="text-sm text-slate-600">"绝对喜欢！包装精致，内容物质量上乘。会再次购买！"</p>
-          </div>
+          ) : (
+            <div className="p-4 rounded-lg bg-slate-50 border border-pink-600/5 text-center text-slate-400">
+              暂无评价
+            </div>
+          )}
         </div>
       </main>
+
+      {/* Toast */}
+      {showToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-slate-800 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg animate-fade-in">
+          {toastMessage}
+        </div>
+      )}
 
       {/* Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-pink-600/10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe">
@@ -150,16 +269,27 @@ export default function ProductDetail() {
               <span className="text-[10px] font-medium">客服</span>
             </button>
             <button onClick={() => navigate('/cart')} className="flex flex-col items-center justify-center gap-1 min-w-[40px] text-slate-500 hover:text-pink-600 transition-colors relative">
-              <span className="absolute -top-1 -right-1 bg-pink-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">2</span>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-pink-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{totalItems > 99 ? '99+' : totalItems}</span>
+              )}
               <ShoppingCart className="w-6 h-6" />
               <span className="text-[10px] font-medium">购物车</span>
             </button>
           </div>
           <div className="flex flex-1 gap-2">
-            <button className="flex-1 h-11 rounded-full border border-pink-600 text-pink-600 bg-transparent font-bold text-sm hover:bg-pink-600/5 active:scale-95 transition-all">
+            <button
+              onClick={handleAddToCart}
+              disabled={addingToCart}
+              className="flex-1 h-11 rounded-full border border-pink-600 text-pink-600 bg-transparent font-bold text-sm hover:bg-pink-600/5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {addingToCart && <Loader2 className="w-4 h-4 animate-spin" />}
               加入购物车
             </button>
-            <button onClick={() => navigate('/checkout')} className="flex-1 h-11 rounded-full bg-pink-600 text-white font-bold text-sm shadow-lg shadow-pink-600/30 hover:bg-pink-600/90 active:scale-95 transition-all">
+            <button
+              onClick={handleBuyNow}
+              disabled={addingToCart}
+              className="flex-1 h-11 rounded-full bg-pink-600 text-white font-bold text-sm shadow-lg shadow-pink-600/30 hover:bg-pink-600/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               立即购买
             </button>
           </div>
